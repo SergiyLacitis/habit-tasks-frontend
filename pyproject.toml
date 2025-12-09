@@ -5,5 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "httpx>=0.28.1",
     "pyside6>=6.10.1",
+    "python-dateutil>=2.9.0.post0",
+    "qt-material>=2.17",
 ]
