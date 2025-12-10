@@ -1,9 +1,9 @@
 import sys
 from datetime import date, timedelta
-from typing import List, Set
+from typing import Set
 
-from PySide6.QtCore import QEvent, QSize, Qt, Signal
-from PySide6.QtGui import QAction, QBrush, QColor, QFont, QPainter, QPen
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QBrush, QColor, QPainter, QPen
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -18,7 +18,6 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
-    QSizePolicy,
     QTableWidget,
     QTableWidgetItem,
     QTabWidget,
@@ -29,36 +28,30 @@ from qt_material import apply_stylesheet
 
 from api_client import api
 
-# --- Константи дизайну ---
-COLOR_ACCENT = "#26a69a"  # Основний колір (Teal)
-COLOR_BG_EMPTY = "#37474f"  # Колір порожньої клітинки
-COLOR_BG_CARD = "#263238"  # Фон карток
-COLOR_TEXT_DIM = "#b0bec5"  # Тьмяний текст
+COLOR_ACCENT = "#26a69a"
+COLOR_BG_EMPTY = "#37474f"
+COLOR_BG_CARD = "#263238"
+COLOR_TEXT_DIM = "#b0bec5"
 
 
-# --- ВІДЖЕТ ТЕПЛОВОЇ КАРТИ (365 днів, 5 рядків) ---
 class YearHeatmap(QWidget):
-    dateClicked = Signal(date)  # Сигнал натискання на клітинку
+    dateClicked = Signal(date)
 
     def __init__(self, logs, interactive=False, parent=None):
         super().__init__(parent)
-        # Перетворюємо логи в множину дат (рядків) для швидкого пошуку
         self.completed_dates: Set[str] = {log["date"].split("T")[0] for log in logs}
         self.interactive = interactive
 
-        # Налаштування сітки
         self.rows = 5
         self.total_days = 365
-        self.cell_size = 16  # Розмір квадратика
-        self.spacing = 4  # Відступ між ними
+        self.cell_size = 16
+        self.spacing = 4
 
-        # Розрахунок розмірів
         self.cols = (self.total_days // self.rows) + 1
         width = self.cols * (self.cell_size + self.spacing)
         height = self.rows * (self.cell_size + self.spacing)
-        self.setFixedSize(width + 10, height + 10)  # +10 для відступів
+        self.setFixedSize(width + 10, height + 10)
 
-        # Дата закінчення - сьогодні. Початок - 364 дні тому.
         self.end_date = date.today()
         self.start_date = self.end_date - timedelta(days=self.total_days - 1)
 
@@ -72,30 +65,25 @@ class YearHeatmap(QWidget):
 
         current_date = self.start_date
 
-        # Малюємо стовпчик за стовпчиком (зліва направо)
         for col in range(self.cols):
             for row in range(self.rows):
                 if current_date > self.end_date:
                     break
 
-                # Координати
                 x = col * (self.cell_size + self.spacing)
                 y = row * (self.cell_size + self.spacing)
 
                 date_str = current_date.isoformat()
                 is_completed = date_str in self.completed_dates
 
-                # Вибір кольору
                 if is_completed:
                     bg_color = QColor(COLOR_ACCENT)
                 else:
                     bg_color = QColor(COLOR_BG_EMPTY)
 
-                # Малювання клітинки
                 path = QBrush(bg_color)
                 painter.setBrush(path)
 
-                # Обведення для "сьогодні"
                 if current_date == date.today():
                     painter.setPen(QPen(QColor("white"), 2))
                 else:
@@ -112,13 +100,10 @@ class YearHeatmap(QWidget):
         x = event.pos().x()
         y = event.pos().y()
 
-        # Визначаємо індекс рядка і стовпця
         col = x // (self.cell_size + self.spacing)
         row = y // (self.cell_size + self.spacing)
 
-        # Перевірка меж
         if 0 <= row < self.rows and 0 <= col < self.cols:
-            # Скільки днів пройшло від start_date до цієї клітинки
             days_offset = col * self.rows + row
             clicked_date = self.start_date + timedelta(days=days_offset)
 
@@ -126,7 +111,6 @@ class YearHeatmap(QWidget):
                 self.dateClicked.emit(clicked_date)
 
 
-# --- ВІКНО ДЕТАЛЕЙ ЗВИЧКИ ---
 class HabitDetailWindow(QDialog):
     def __init__(self, task_data, parent=None):
         super().__init__(parent)
@@ -139,7 +123,6 @@ class HabitDetailWindow(QDialog):
         main_layout.setSpacing(20)
         main_layout.setContentsMargins(20, 20, 20, 20)
 
-        # 1. Верхня панель: Редагування
         header_group = QFrame()
         header_group.setStyleSheet(
             f"background-color: {COLOR_BG_CARD}; border-radius: 10px;"
@@ -194,10 +177,8 @@ class HabitDetailWindow(QDialog):
 
         main_layout.addWidget(stats_group)
 
-        # 3. Інтерактивна Теплова карта
         main_layout.addWidget(QLabel("Yearly Progress (Click cell to change):"))
 
-        # ScrollArea для карти, щоб вона горталася вбік
         self.map_scroll = QScrollArea()
         self.map_scroll.setFixedHeight(140)
         self.map_scroll.setWidgetResizable(True)
@@ -212,7 +193,6 @@ class HabitDetailWindow(QDialog):
 
         self.heatmap = None
 
-        # Завантаження
         self.refresh_data()
 
     def create_stat_label(self, title, value):
@@ -231,7 +211,6 @@ class HabitDetailWindow(QDialog):
         return container
 
     def refresh_data(self):
-        # Отримуємо дані за останній рік
         year_ago = date.today() - timedelta(days=365)
         self.logs = api.get_task_logs(self.task_data["id"], date_from=year_ago)
 
@@ -242,10 +221,8 @@ class HabitDetailWindow(QDialog):
         dates = {l["date"].split("T")[0] for l in self.logs}
         total = len(dates)
 
-        # Стрік
         streak = 0
         check = date.today()
-        # Дозволяємо "вчора", якщо сьогодні ще не відмічено
         if check.isoformat() not in dates:
             check -= timedelta(days=1)
 
@@ -255,7 +232,6 @@ class HabitDetailWindow(QDialog):
 
         rate = int((total / 365) * 100)
 
-        # Оновлення UI
         self.lbl_streak.findChild(QLabel, "").nextInFocusChain().setText(str(streak))
         self.lbl_total.findChild(QLabel, "").nextInFocusChain().setText(str(total))
         self.lbl_rate.findChild(QLabel, "").nextInFocusChain().setText(f"{rate}%")
@@ -268,7 +244,6 @@ class HabitDetailWindow(QDialog):
         self.heatmap.dateClicked.connect(self.toggle_log)
         self.map_layout.addWidget(self.heatmap)
 
-        # Прокрутка в кінець (до сьогодні)
         self.map_scroll.horizontalScrollBar().setValue(
             self.map_scroll.horizontalScrollBar().maximum()
         )
@@ -306,7 +281,6 @@ class HabitDetailWindow(QDialog):
                 self.accept()
 
 
-# --- КАРТКА ЗВИЧКИ (ЕЛЕМЕНТ СПИСКУ) ---
 class HabitCard(QFrame):
     needsRefresh = Signal()
     cardClicked = Signal(dict)
@@ -328,7 +302,6 @@ class HabitCard(QFrame):
 
         layout = QVBoxLayout(self)
 
-        # Header: Назва + Чекбокс
         header = QHBoxLayout()
 
         text_layout = QVBoxLayout()
@@ -365,8 +338,6 @@ class HabitCard(QFrame):
         super().mouseReleaseEvent(event)
 
     def load_mini_preview(self):
-        # Тут завантажуємо лише статистику, але не малюємо важку карту для економії ресурсів у списку
-        # Або можна намалювати дуже маленьку версію
         pass
 
     def on_check_click(self):
@@ -400,13 +371,11 @@ class HabitCard(QFrame):
         """)
 
 
-# --- ВКЛАДКА СПИСКУ ЗВИЧОК ---
 class HabitsTab(QWidget):
     def __init__(self):
         super().__init__()
         layout = QVBoxLayout(self)
 
-        # Top Bar
         top_bar = QHBoxLayout()
         refresh_btn = QPushButton("↻ Refresh")
         refresh_btn.clicked.connect(self.load_tasks)
@@ -423,7 +392,6 @@ class HabitsTab(QWidget):
         top_bar.addWidget(add_btn)
         layout.addLayout(top_bar)
 
-        # Scroll List
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setStyleSheet("background: transparent; border: none;")
@@ -460,7 +428,6 @@ class HabitsTab(QWidget):
             self.load_tasks()
 
 
-# --- ВКЛАДКА ПРОФІЛЮ ---
 class ProfileTab(QWidget):
     def __init__(self):
         super().__init__()
@@ -498,11 +465,9 @@ class ProfileTab(QWidget):
             self.lbl_role.setText(data.get("role", "user").upper())
 
     def logout(self):
-        # Простий перезапуск програми або вихід
         QApplication.quit()
 
 
-# --- АДМІН ПАНЕЛЬ ---
 class AdminTab(QWidget):
     def __init__(self):
         super().__init__()
@@ -527,7 +492,6 @@ class AdminTab(QWidget):
             self.table.setItem(i, 2, QTableWidgetItem(u["role"]))
 
 
-# --- ГОЛОВНЕ ВІКНО ---
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -543,15 +507,12 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.tab_habits, "Habits")
         self.tabs.addTab(self.tab_profile, "Profile")
 
-        # Додаємо адмінку, якщо юзер - адмін
         if api.user_role == "admin":
             self.tab_admin = AdminTab()
             self.tabs.addTab(self.tab_admin, "Admin Panel")
 
-        # Сигнал зміни вкладки для оновлення даних
         self.tabs.currentChanged.connect(self.on_tab_change)
 
-        # Завантажуємо звички одразу
         self.tab_habits.load_tasks()
 
     def on_tab_change(self, index):
@@ -560,9 +521,6 @@ class MainWindow(QMainWindow):
             widget.refresh()
         elif isinstance(widget, AdminTab):
             widget.load_users()
-
-
-# --- ДІАЛОГИ СТВОРЕННЯ/РЕЄСТРАЦІЇ ---
 
 
 class CreateHabitDialog(QDialog):
@@ -668,10 +626,8 @@ class AuthWindow(QDialog):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
-    # Використовуємо тему material theme
     apply_stylesheet(app, theme="dark_teal.xml")
 
-    # Додаткові стилі для кастомізації
     app.setStyleSheet(
         app.styleSheet()
         + """

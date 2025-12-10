@@ -1,5 +1,5 @@
 [project]
-name = "laba"
+name = "habit-tasks-frontend"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -9,4 +9,10 @@ dependencies = [
     "pyside6>=6.10.1",
     "python-dateutil>=2.9.0.post0",
     "qt-material>=2.17",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest-asyncio>=1.3.0",
 ]

@@ -1,16 +1,16 @@
-from datetime import date, datetime, timedelta
+from datetime import date
 from typing import Any, Dict, List, Optional
 
 import httpx
 
 
 class APIClient:
-    def __init__(self, base_url: str = "http://localhost:8000/api/v1"):
+    def __init__(self, base_url: str = "http://0.0.0.0:8000/api/v1"):
         self.base_url = base_url
         self.access_token: Optional[str] = None
         self.refresh_token: Optional[str] = None
         self.client = httpx.Client(base_url=base_url, timeout=10.0)
-        self.user_role: Optional[str] = None  # Зберігаємо роль користувача
+        self.user_role: Optional[str] = None
 
     def set_tokens(self, access: str, refresh: str = None):
         self.access_token = access
@@ -21,7 +21,6 @@ class APIClient:
     def _request(self, method: str, url: str, **kwargs) -> httpx.Response:
         try:
             response = self.client.request(method, url, **kwargs)
-            # Якщо токен протух - пробуємо оновити
             if response.status_code == 401 and self.refresh_token:
                 print("Token expired. Refreshing...")
                 if self.refresh_session():
@@ -43,7 +42,6 @@ class APIClient:
             data = response.json()
             self.set_tokens(data["access_token"], data.get("refresh_token"))
 
-            # Отримуємо інформацію про себе, щоб дізнатися роль
             me = self.get_me()
             self.user_role = me.get("role", "user")
             return True
@@ -58,7 +56,6 @@ class APIClient:
                 json={"username": username, "email": email, "password": password},
             )
             response.raise_for_status()
-            # Автоматичний логін після реєстрації
             data = response.json()
             self.set_tokens(data["access_token"], data.get("refresh_token"))
             self.user_role = "user"
@@ -69,7 +66,6 @@ class APIClient:
 
     def refresh_session(self) -> bool:
         try:
-            # Створюємо тимчасовий клієнт без Auth хедера, але з Refresh токеном
             temp_client = httpx.Client(base_url=self.base_url)
             temp_client.headers["Authorization"] = f"Bearer {self.refresh_token}"
             response = temp_client.post("/auth/refresh")
@@ -82,8 +78,6 @@ class APIClient:
 
     def get_me(self) -> Dict[str, Any]:
         return self._request("GET", "/auth/users/me").json()
-
-    # --- TASKS ---
 
     def get_tasks(self) -> List[Dict[str, Any]]:
         try:
@@ -117,7 +111,7 @@ class APIClient:
                 "description": description,
                 "frequency": frequency,
             }
-            # Відправляємо тільки непорожні поля
+
             self._request(
                 "PATCH",
                 f"/tasks/{task_id}",
@@ -152,7 +146,6 @@ class APIClient:
         """
         try:
             if status:
-                # Використовуємо логіку синхронізації для додавання запису (навіть минулого)
                 payload = {
                     "created_tasks": [],
                     "new_logs": [
@@ -165,7 +158,6 @@ class APIClient:
                 }
                 self._request("POST", "/sync/", json=payload)
             else:
-                # Видаляємо запис через endpoint undo
                 self._request(
                     "DELETE",
                     f"/tasks/{task_id}/complete",
@@ -178,8 +170,6 @@ class APIClient:
 
     def toggle_today(self, task_id: int, current_status: bool) -> bool:
         return self.set_log_status(task_id, date.today(), not current_status)
-
-    # --- ADMIN ---
 
     def get_all_users(self) -> List[Dict[str, Any]]:
         try:
