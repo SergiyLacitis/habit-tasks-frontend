@@ -5,7 +5,7 @@ import httpx
 
 
 class APIClient:
-    def __init__(self, base_url: str = "http://0.0.0.0:8000/api/v1"):
+    def __init__(self, base_url: str = "http://127.0.0.1:8000/api/v1"):
         self.base_url = base_url
         self.access_token: Optional[str] = None
         self.refresh_token: Optional[str] = None
@@ -85,9 +85,7 @@ class APIClient:
         except Exception:
             return []
 
-    def create_task(
-        self, title: str, description: str = None, frequency: str = None
-    ) -> bool:
+    def create_task(self, title: str, description: str = None) -> bool:
         try:
             self._request(
                 "POST",
@@ -95,21 +93,17 @@ class APIClient:
                 json={
                     "title": title,
                     "description": description,
-                    "frequency": frequency,
                 },
             )
             return True
         except Exception:
             return False
 
-    def update_task(
-        self, task_id: int, title: str, description: str, frequency: str
-    ) -> bool:
+    def update_task(self, task_id: int, title: str, description: str) -> bool:
         try:
             payload = {
                 "title": title,
                 "description": description,
-                "frequency": frequency,
             }
 
             self._request(
@@ -140,10 +134,6 @@ class APIClient:
             return []
 
     def set_log_status(self, task_id: int, log_date: date, status: bool) -> bool:
-        """
-        Встановлює статус звички на конкретну дату.
-        Використовує /sync для True (створення) та DELETE для False (видалення).
-        """
         try:
             if status:
                 payload = {
@@ -160,7 +150,7 @@ class APIClient:
             else:
                 self._request(
                     "DELETE",
-                    f"/tasks/{task_id}/complete",
+                    f"/taclsks/{task_id}/complete",
                     params={"date": log_date.isoformat()},
                 )
             return True
